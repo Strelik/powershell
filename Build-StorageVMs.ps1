@@ -1,9 +1,9 @@
 ﻿
 
-#Script to create a handful of storage-oriented VirtualBox VMS automatically with multiple hard-drives attached to form a cluster.
+#Script to create a handful of identical storage-oriented VirtualBox VMS automatically with multiple hard-drives attached for use in a cluster scenario.
 #IE Ceph, Replication Nodes, Shared Storage ETC
 
-
+#Just call the script and pass in the parameters.
 
 function Build-VMs ()
 {
@@ -14,7 +14,10 @@ function Build-VMs ()
       [String]$ostype,
 
       [Parameter(Mandatory=$True)]
-      [int]$hosts
+      [int]$hosts,
+
+      [Parameter(Mandatory=$True)]
+      [int]$sasdrives
     )
 
     if ($hosts -lt 1)
@@ -24,7 +27,7 @@ function Build-VMs ()
     }
     
     $counter = 0
-
+    $sascounter = 0
     DO{
     
     
@@ -41,12 +44,19 @@ function Build-VMs ()
     VBoxManage storagectl "StorageHost_$counter" --name SAS --add sas --controller LSILogicSAS
     
     VBoxManage createhd --filename "Boot_StorageHost_$counter.vdi" --size 32768
-    VBoxManage createhd --filename "SAS_StorageHost_$counter.vdi" --size 131072
-     
 
     VBoxManage storageattach "StorageHost_$counter" --storagectl IDE --port 0 --device 0 --type dvddrive --medium emptydrive
     VBoxManage storageattach "StorageHost_$counter" --storagectl SATA --port 0 --device 0 --type hdd --medium Boot_StorageHost_$counter.vdi
-    VBoxManage storageattach "StorageHost_$counter" --storagectl SAS --port 0 --device 0 --type hdd --medium SAS_StorageHost_$counter.vdi
+
+      DO{
+        
+      VBoxManage createhd --filename "SAS$sascounter StorageHost_$counter.vdi"  --size 131072
+      VBoxManage storageattach "StorageHost_$counter" --storagectl SAS --port $sascounter --device 0 --type hdd --medium "SAS$sascounter StorageHost_$counter.vdi"
+
+      $sascounter++
+
+      } While ($sascounter -le ($sasdrives-1))
+    
 
     VBoxManage modifyvm "StorageHost_$counter" --nic1 nat --nictype1 82540EM --cableconnected1 on
     VBoxManage modifyvm "StorageHost_$counter" --nic2 bridged --nictype1 82540EM --cableconnected1 on
